@@ -5,11 +5,8 @@ import matplotlib.pyplot as plt
 import math
 import copy
 import operator
-import PL2_read
-import maestro_read
-import timeseries
-import neuron_tuning
-from general import zero_phase_kernel
+import ReadMaestro.utils.PL2_read
+from SessionAnalysis import timeseries
 import warnings
 import pickle
 

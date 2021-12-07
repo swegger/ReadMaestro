@@ -38,11 +38,12 @@ def load_directory(directory_name):
     # Sort by file name
     filenames.sort()
     data = []
-    # filenames = [filenames[2378]]
-    # filenames = filenames[0:512]
     for filename in filenames:
-        # print(filename)
-        data.append(load(os.path.join(directory_name, filename)))
+        try:
+            data.append(load(os.path.join(directory_name, filename)))
+        except:
+            print("Encountered error reading file", filename, "and trial was skipped.")
+            continue
 
     return data
 
@@ -437,13 +438,41 @@ def _read_target(fp, data):
                 target['position_y'] = struct_read('f', 4)[0]
                 current_byte += 128 # Skip for same size as RMV_TARGET
             elif w_target_type == RMV_TARGET:
-                # print('RMV_TARGET NOT IMPLEMENTED')
-                current_byte += 180 # TODO
+                target['target_type'] = struct_read('i', 4)[0]
+                target['aperture'] = struct_read('i', 4)[0]
+                target['flags'] = struct_read('i', 4)[0]
+
+                # Append RGB mean and alpha values
+                target['rgb_mean'] = [np.zeros((3, ), dtype=np.int64) for x in range(0, 2)]
+                for rgb in range(0, 8):
+                    if rgb < 3:
+                        target['rgb_mean'][0][rgb] = int(struct_read('B', 1)[0])
+                    elif rgb > 3 and rgb < 7:
+                        target['rgb_mean'][1][rgb % 4] = int(struct_read('B', 1)[0])
+                    else:
+                        # rgb == 3 or 7
+                        _ = struct_read('B', 1)[0]
+
+                # Append RGB contrast and alpha values
+                target['rgb_contrast'] = [np.zeros((3, ), dtype=np.int64) for x in range(0, 2)]
+                for rgb in range(0, 8):
+                    if rgb < 3:
+                        target['rgb_contrast'][0][rgb] = int(struct_read('B', 1)[0])
+                    elif rgb > 3 and rgb < 7:
+                        target['rgb_contrast'][1][rgb % 4] = int(struct_read('B', 1)[0])
+                    else:
+                        # rgb == 3 or 7
+                        _ = struct_read('B', 1)[0]
+
+                if data['header']['version'] <= 22:
+                    current_byte += 152 # TODO
+                else:
+                    current_byte += 152 + 12 # TODO
             elif w_target_type == 0:
                 break
             else:
                 raise RuntimeError('Invalid target type {:d}'.format(w_target_type))
-            data['targets'] += [target]
+            data['targets'].append(target)
 
     return data
 
