@@ -21,9 +21,10 @@ import sys
 import numpy as np
 import re
 import math
+import pickle
 
 
-def load_directory(directory_name):
+def load_directory(directory_name, save_data=False, save_name=None):
     """Load a directory of maestro files
 
     Loads a complete directory of maestro files as a list of dictionaries.
@@ -44,6 +45,20 @@ def load_directory(directory_name):
         except:
             print("Encountered error reading file", filename, "and trial was skipped.")
             continue
+
+    if save_name is not None:
+        save_data = True
+        if save_name[-7:] != ".pickle" and save_name[-4:] != pkl:
+            save_name = save_name + ".pickle"
+    if save_data:
+        if save_name is None:
+            save_name = directory_name.split("/")[-1]
+            root_name = directory_name.split("/")[0:-1]
+            save_name = save_name + "_maestro.pickle"
+            save_name = "".join(x + "/" for x in root_name) + save_name
+        print("Saving Maestro trial data as:", save_name)
+        with open(save_name, 'wb') as fp:
+            pickle.dump(data, fp, protocol=-1)
 
     return data
 
