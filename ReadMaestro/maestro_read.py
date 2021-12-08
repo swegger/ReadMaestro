@@ -24,13 +24,28 @@ import math
 import pickle
 
 
-def load_directory(directory_name, save_data=False, save_name=None):
+def load_directory(directory_name, check_existing=True, save_data=False, save_name=None):
     """Load a directory of maestro files
 
     Loads a complete directory of maestro files as a list of dictionaries.
     The filenames are assumed to be in the of the form *.[0-9][0-9][0-9][0-9].
     This function attempts to load the files in order of their suffix
     """
+    if check_existing:
+        try:
+            with open(directory_name + ".pickle", 'rb') as fp:
+                data = pickle.load(fp)
+            return data
+        except FileNotFoundError:
+            pass
+        try:
+            with open(directory_name + "_maestro.pickle", 'rb') as fp:
+                data = pickle.load(fp)
+            return data
+        except FileNotFoundError:
+            pass
+        print("Could not find existing Maestro file. Recomputing from scratch.")
+
     if not os.path.isdir(directory_name):
         raise RuntimeError('Directory name {:s} is not valid'.format(directory_name))
     pattern = re.compile('\.[0-9]+$')
