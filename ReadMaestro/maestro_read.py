@@ -585,7 +585,7 @@ class MaestroTargetCalculator(object):
         self.next_update_time = None
         self.last_update_time = None
         self.new_commands = False
-        self.frame_refresh_time = 1000.0 / data['header']['display_framerate']
+        self.frame_refresh_time = 1000 * (1000.0 / data['header']['display_framerate'])
         self.eye_position = np.stack((data['horizontal_eye_position'], data['vertical_eye_position']), axis=0)
 
     def set_visible(self, visibility, time):
@@ -594,7 +594,7 @@ class MaestroTargetCalculator(object):
 
     def get_next_refresh(self, from_time, n_forward=1):
         n_found = 0
-        for t in range(from_time, self.n_time_points + 1, 1):
+        for t in range(from_time, self.n_time_points, 1):
             if t % self.frame_refresh_time < 1:
                 n_found += 1
                 if n_found == n_forward:

@@ -1,4 +1,5 @@
 import numpy as np
+from ReadMaestro.target import MaestroTarget
 
 
 
@@ -74,3 +75,25 @@ def make_simple_trial_dict(maestro_data):
                                           * trial['header']['scan_interval'] * 1000)
         for k in keep_keys:
             simple_trial[k] = trial[k]
+        simple_trials.append(simple_trial)
+
+    return simple_trials
+
+
+def data_to_target(maestro_data):
+
+    target_keys = ['horizontal_target_position',
+                    'vertical_target_position',
+                    'horizontal_target_velocity',
+                    'vertical_target_velocity']
+
+    for trial in maestro_data:
+        # Make a target object for each target in the trial
+        n_targets = len(trial['targets'])
+        trial['targets'] = []
+        for target in range(0, n_targets):
+            trial['targets'].append(MaestroTarget(trial, target))
+        for key in target_keys:
+            del trial[key]
+
+    return None
