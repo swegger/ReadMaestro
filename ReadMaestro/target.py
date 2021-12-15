@@ -52,6 +52,13 @@ def decompress_v(x, compressed_v):
 class MaestroTarget(object):
     """
 
+    Primary benefit of this object is that it can handle computing the commanded
+    and actual velocity (derivative of actual target position) on the fly. These
+    should be requested with calls to:
+        get_data(data_name) where data_name specifies the target property and is
+        one of:
+            xpos, ypos, xvel_comm, yvel_comm, xvel, yvel
+    Data are reconstructed in sync with the screen refresh rate.
     Data in the maestro_trial 'horizontal_target_velocity' and
     'vertical_target_velocity' are assumed to be the commanded velocity as
     output by maestro_read module.
@@ -87,12 +94,6 @@ class MaestroTarget(object):
                 if n_found == n_back:
                     return t
         return None
-
-    def get_next_change_time(self, time, axis=None):
-        # This finds the first time FOLLOWING a nan.  Will skip times before a nan.
-        # t_start = np.where(np.isnan(maestro_PL2_data[100]['targets'][0].position[1, :]))[0][-1] + 1
-        # np.diff(maestro_PL2_data[100]['targets'][0].position[1, t_start:]) > 0
-        pass
 
     def get_next_position_threshold(self, time, axis=None):
         pass
