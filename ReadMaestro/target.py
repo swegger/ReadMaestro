@@ -42,7 +42,7 @@ def decompress_data(compressed_v):
     v_out = np.zeros(compressed_v[-1][1])
     for start, stop, v in compressed_v:
         v_out[start:stop] = v
-        
+
     return v_out
 
 
@@ -170,8 +170,10 @@ class MaestroTarget(object):
         elif data_name in ['vertical_target_velocity', 'yvel']:
             return self._velocity_from_position('vertical')
         else:
-            raise
+            raise ValueError("MaestroTarget object has no data '{0}'.".format(data_name))
 
+    def __getitem__(self, item):
+        return self.get_data(item)
 
     # def __getattr__(self, attr):
     #     print(attr)
