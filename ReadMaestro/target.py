@@ -5,48 +5,45 @@ import numpy as np
 def compress_data(data_vector):
     """ This does a very simple compression based on the fact that commanded
     target velocity (and often position) rarely change and so there is no
-    need to store all the data points. """
-    last_v = 0
+    need to store all the data points. This compression will only save storage
+    if over 2/3 of the data are redundant with their previous data point. """
+    if len(data_vector) == 1:
+        return [(0, 1, data_vector[0])]
+    last_v = data_vector[0]
     start_x = 0
     compressed_v = []
-    for x_ind in range(0, len(data_vector)):
+    # NOTE: need to start iteration at 1 since 0 is already determined and this
+    # gives output as slice indices for decompress_data.
+    for x_ind in range(1, len(data_vector)):
         curr_v = data_vector[x_ind]
-        if np.isnan(curr_v):
-            continue
-        if (curr_v != last_v):
+        # Need special handling of np.nan
+        if np.isnan(curr_v) or np.isnan(last_v):
+            if ( (np.isnan(last_v) and ~np.isnan(curr_v))
+                or (~np.isnan(last_v) and np.isnan(curr_v)) ):
+                # Nan transition point
+                compressed_v.append((start_x, x_ind, last_v))
+                last_v = curr_v
+                start_x = x_ind
+        elif (curr_v != last_v):
             compressed_v.append((start_x, x_ind, last_v))
             last_v = curr_v
             start_x = x_ind
-        elif (x_ind == len(data_vector) - 1):
+        if (x_ind == len(data_vector) - 1):
+            # Need to log the end of data whether it changes or not so that we
+            # can assing final values by slice in decompress_data
             compressed_v.append((start_x, x_ind+1, last_v))
-            last_v = curr_v
-            start_x = x_ind
+
     return compressed_v
 
 
-def decompress_v(x, compressed_v):
+def decompress_data(compressed_v):
     """ Undoes the simple compression algorithm to return original target
-    data vector. It is assumed that the values of x represent a series of
-    consecutive indices into the original data. If this is violated the
-    output behavior is undefined. """
-    if x[-1] >= compressed_v[-1][1]:
-        raise ValueError("Index 'x' has value greater than length of data ({0} vs. {1}).".format(x, compressed_v[-1][-1]))
-    if x[0] < 0:
-        raise ValueError("Index 'x' must be >= 0.")
-    try:
-        v_out = np.zeros(len(x))
-        for t_ind, x in enumerate(x):
-            for start, stop, v in compressed_v:
-                if (x >= start) and (x < stop):
-                    v_out[t_ind] = v
-                    break
-        return v_out
-    except TypeError:
-        # TypeError is thrown if x does not have len or is not iterable,
-        # so assume it's a single value
-        for start, stop, v in compressed_v:
-            if (x >= start) and (x < stop):
-                return v
+    data vector. """
+    v_out = np.zeros(compressed_v[-1][1])
+    for start, stop, v in compressed_v:
+        v_out[start:stop] = v
+        
+    return v_out
 
 
 class MaestroTarget(object):
@@ -107,16 +104,15 @@ class MaestroTarget(object):
     def _velocity_from_position(self, axis, remove_transients=True):
         # Always computed over all time points otherwise this gets super confusing in multiple stages
         transient_index = [[], []]
-        x_for_pos = np.arange(0, self.n_time_points)
         if axis == 'horizontal':
-            position = decompress_v(x_for_pos, self.horizontal_target_position)
-            vel_comm = decompress_v(x_for_pos, self.horizontal_target_velocity_comm)
+            position = decompress_data(self.horizontal_target_position)
+            vel_comm = decompress_data(self.horizontal_target_velocity_comm)
         elif axis == 'vertical':
-            position = decompress_v(x_for_pos, self.vertical_target_position)
-            vel_comm = decompress_v(x_for_pos, self.vertical_target_velocity_comm)
+            position = decompress_data(self.vertical_target_position)
+            vel_comm = decompress_data(self.vertical_target_velocity_comm)
         else:
             raise ValueError("Axis for velocity must be specified as 'horizontal' or 'vertical'.")
-        calculated_velocity = np.zeros(len(x_for_pos))
+        calculated_velocity = np.zeros(len(position))
 
         last_x = 0
         next_x = self.get_next_refresh(1)
@@ -158,23 +154,21 @@ class MaestroTarget(object):
     def readcxdata_velocity(self):
         pass
 
-    def get_data(self, data_name, x=None):
+    def get_data(self, data_name):
         """ x must be a continuous set of indices into the data for this to work
         but this is not checked. """
-        if x == None:
-            x = np.arange(0, self.n_time_points)
         if data_name in ['horizontal_target_position', 'xpos']:
-            return decompress_v(x, self.horizontal_target_position)
+            return decompress_data(self.horizontal_target_position)
         elif data_name in ['vertical_target_position', 'ypos']:
-            return decompress_v(x, self.vertical_target_position)
+            return decompress_data(self.vertical_target_position)
         elif data_name in ['horizontal_target_velocity_comm', 'xvel_comm']:
-            return decompress_v(x, self.horizontal_target_velocity_comm)
+            return decompress_data(self.horizontal_target_velocity_comm)
         elif data_name in ['vertical_target_velocity_comm', 'yvel_comm']:
-            return decompress_v(x, self.vertical_target_velocity_comm)
+            return decompress_data(self.vertical_target_velocity_comm)
         elif data_name in ['horizontal_target_velocity', 'xvel']:
-            return self._velocity_from_position('horizontal')[x]
+            return self._velocity_from_position('horizontal')
         elif data_name in ['vertical_target_velocity', 'yvel']:
-            return self._velocity_from_position('vertical')[x]
+            return self._velocity_from_position('vertical')
         else:
             raise
 
