@@ -81,13 +81,18 @@ def make_simple_trial_dict(maestro_data):
 
 
 def data_to_target(maestro_data):
+    """Deletes the target_keys and their data for current targets and replaces
+    them with a MaestroTarget object at key 'targets' for each target in each
+    trial. Modification is done in-place.
 
+    NOTE: this function is fairly slow as the MaestroTargets run through all
+    the data to 'compress' it. """
     target_keys = ['horizontal_target_position',
                     'vertical_target_position',
                     'horizontal_target_velocity',
                     'vertical_target_velocity']
 
-    for trial in maestro_data:
+    for t_ind, trial in enumerate(maestro_data):
         # Make a target object for each target in the trial
         n_targets = len(trial['targets'])
         trial['targets'] = []
