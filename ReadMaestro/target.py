@@ -2,6 +2,35 @@ import numpy as np
 
 
 
+def compress_target_data(maestro_data):
+    """
+    """
+    for trial in maestro_data:
+        try:
+            if trial['compressed_target']:
+                continue
+        except KeyError:
+            xpos = []
+            ypos = []
+            xvel = []
+            yvel = []
+            # Get compressed data for each target
+            for targ in range(0, len(trial['targets'])):
+                xpos.append(compress_data(trial['horizontal_target_position'][targ, :]))
+                ypos.append(compress_data(trial['vertical_target_position'][targ, :]))
+                xvel.append(compress_data(trial['horizontal_target_velocity'][targ, :]))
+                yvel.append(compress_data(trial['vertical_target_velocity'][targ, :]))
+            # Overwrite existing data with compressed data
+            trial['horizontal_target_position'] = xpos
+            trial['vertical_target_position'] = ypos
+            trial['horizontal_target_velocity'] = xvel
+            trial['vertical_target_velocity'] = yvel
+            # Add flag indicating that data are compressed
+            trial['compressed_target'] = True
+
+    return None
+
+
 def compress_data(data_vector):
     """ This does a very simple compression based on the fact that commanded
     target velocity (and often position) rarely change and so there is no
@@ -64,13 +93,26 @@ class MaestroTarget(object):
     def __init__(self, maestro_trial, target_num):
 
         self.frame_refresh_time = 1000 * (1000.0 / maestro_trial['header']['display_framerate'])
-        self.n_time_points = maestro_trial['horizontal_target_position'].shape[1]
 
-        # Store compressed versions of target data
-        self.horizontal_target_position = compress_data(maestro_trial['horizontal_target_position'][target_num, :])
-        self.vertical_target_position = compress_data(maestro_trial['vertical_target_position'][target_num, :])
-        self.horizontal_target_velocity_comm = compress_data(maestro_trial['horizontal_target_velocity'][target_num, :])
-        self.vertical_target_velocity_comm = compress_data(maestro_trial['vertical_target_velocity'][target_num, :])
+
+        # Check if data are already compressed
+        try:
+            if maestro_trial['compressed_target']:
+                self.n_time_points = maestro_trial['horizontal_target_position'][0][-1][1]
+                self.horizontal_target_position = maestro_trial['horizontal_target_position'][target_num]
+                self.vertical_target_position = maestro_trial['vertical_target_position'][target_num]
+                self.horizontal_target_velocity_comm = maestro_trial['horizontal_target_velocity'][target_num]
+                self.vertical_target_velocity_comm = maestro_trial['vertical_target_velocity'][target_num]
+            else:
+                # Has compressed key but not compressed so move to except statement
+                raise KeyError("Dummy key error")
+        except KeyError:
+            self.n_time_points = maestro_trial['horizontal_target_position'].shape[1]
+            # Compute then store compressed versions of target data
+            self.horizontal_target_position = compress_data(maestro_trial['horizontal_target_position'][target_num, :])
+            self.vertical_target_position = compress_data(maestro_trial['vertical_target_position'][target_num, :])
+            self.horizontal_target_velocity_comm = compress_data(maestro_trial['horizontal_target_velocity'][target_num, :])
+            self.vertical_target_velocity_comm = compress_data(maestro_trial['vertical_target_velocity'][target_num, :])
 
     def get_next_refresh(self, from_time, n_forward=1):
         n_found = 0
@@ -174,9 +216,3 @@ class MaestroTarget(object):
 
     def __getitem__(self, item):
         return self.get_data(item)
-
-    # def __getattr__(self, attr):
-    #     print(attr)
-    #
-    # def __getattribute__(self, attr):
-    #     print(attr, "what the f")
