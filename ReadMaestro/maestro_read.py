@@ -96,6 +96,7 @@ def load(filename):
         data = {}
         data['filename'] = filename
         data['header'] = _read_header(fp)
+        data['header']['UsedStab'] = False # Default False. Set true later if stabilization is used
 
         # Read records until the end of the file
         while fp.tell() < num_total_bytes:
@@ -1076,6 +1077,8 @@ def _process_codes_compute_target_motion(data):
                 else:
                     stabs[1] = False
             _targets[target_index].set_stabilization(stabs, snap, code_time)
+            # Set flag that stabilization of any kind was used on this trial
+            data['header']['UsedStab'] = True
             trial_code_index += 2
         else:
             raise RuntimeError('Error invalid or unhandled trial code {:d} at time {:d}'.format(code, index))
