@@ -216,3 +216,6 @@ class MaestroTarget(object):
 
     def __getitem__(self, item):
         return self.get_data(item)
+
+    def __len__(self):
+        return self.n_time_points
