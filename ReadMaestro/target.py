@@ -114,6 +114,15 @@ class MaestroTarget(object):
             self.horizontal_target_velocity_comm = compress_data(maestro_trial['horizontal_target_velocity'][target_num, :])
             self.vertical_target_velocity_comm = compress_data(maestro_trial['vertical_target_velocity'][target_num, :])
 
+        # Set valid data keys for referencing target data
+        self.__valid_keys = ['horizontal_target_position', 'xpos',
+                             'vertical_target_position', 'ypos',
+                             'horizontal_target_velocity_comm', 'xvel_comm',
+                             'vertical_target_velocity_comm', 'yvel_comm',
+                             'horizontal_target_velocity', 'xvel',
+                             'vertical_target_velocity', 'yvel']
+        self.__myiterator__ = iter(self.__valid_keys)
+
     def get_next_refresh(self, from_time, n_forward=1):
         n_found = 0
         from_time = np.ceil(from_time).astype('int')
@@ -216,6 +225,22 @@ class MaestroTarget(object):
 
     def __getitem__(self, item):
         return self.get_data(item)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        next_item = next(self.__myiterator__)
+        # Do not return 'hidden' attributes/keys
+        while next_item[0:1] == "_":
+            next_item = next(self.__myiterator__)
+        return next_item
+
+    def __iter__(self):
+        return iter(self.__valid_keys)
+
+    def keys(self):
+        return self.__valid_keys
 
     def __len__(self):
         return self.n_time_points
