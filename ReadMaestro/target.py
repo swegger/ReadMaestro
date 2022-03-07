@@ -125,9 +125,9 @@ class MaestroTarget(object):
 
     def get_next_refresh(self, from_time, n_forward=1):
         n_found = 0
-        from_time = np.ceil(from_time).astype('int')
+        from_time = np.floor(from_time).astype('int')
         for t in range(from_time, self.n_time_points-1, 1):
-            if t % self.frame_refresh_time < 1:
+            if (t % self.frame_refresh_time < 1) and (t >= from_time):
                 n_found += 1
                 if n_found == n_forward:
                     return t
@@ -135,9 +135,9 @@ class MaestroTarget(object):
 
     def get_last_refresh(self, from_time, n_back=1):
         n_found = 0
-        from_time = np.floor(from_time).astype('int')
+        from_time = np.ceil(from_time).astype('int')
         for t in range(from_time, -1, -1):
-            if t % self.frame_refresh_time < 1:
+            if (t % self.frame_refresh_time < 1) and (t <= from_time):
                 n_found += 1
                 if n_found == n_back:
                     return t
