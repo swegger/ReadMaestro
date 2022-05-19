@@ -586,8 +586,12 @@ class MaestroTargetCalculator(object):
         self.next_update_time = None
         self.last_update_time = None
         self.new_commands = False
-        self.frame_refresh_time = 1000 * (1000.0 / data['header']['display_framerate'])
         self.eye_position = np.stack((data['horizontal_eye_position'], data['vertical_eye_position']), axis=0)
+        # seems like for some reason this changed with version?
+        if data['header']['version'] < 21:
+            self.frame_refresh_time = 1000.0 / data['header']['display_framerate']
+        else:
+            self.frame_refresh_time = 1000 * (1000.0 / data['header']['display_framerate'])
 
     def set_visible(self, visibility, time):
         # Set visible, assuming visibility is fixed until changed again.

@@ -91,13 +91,11 @@ class MaestroTarget(object):
     """
 
     def __init__(self, maestro_trial, target_num):
-
         # seems like for some reason this changed with version?
         if maestro_trial['header']['version'] < 21:
             self.frame_refresh_time = 1000.0 / maestro_trial['header']['display_framerate']
         else:
             self.frame_refresh_time = 1000 * (1000.0 / maestro_trial['header']['display_framerate'])
-
 
         # Check if data are already compressed
         try:
