@@ -6,7 +6,7 @@ import math
 import copy
 import operator
 import ReadMaestro.utils.PL2_read
-import timeseries
+from ReadMaestro import timeseries
 import warnings
 import pickle
 
