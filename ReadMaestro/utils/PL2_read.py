@@ -187,7 +187,11 @@ class PL2Reader(object):
         if channel >= len(self.info["analog_channels"]) or channel < 0:
             raise RuntimeError("Invalid channel number.\n")
 
-        if not "block_offsets" in self.info["analog_channels"][channel] or len(self.info["analog_channels"][channel]["block_offsets"]) == 0:
+        if ( (not "block_offsets" in self.info["analog_channels"][channel]) or
+             (len(self.info["analog_channels"][channel]["block_offsets"]) == 0) or
+             (self.info["analog_channels"][channel]['num_values'] == 0) ):
+            # There is no data on this channel
+            print("No analog data found for channel:", channel)
             return None
 
         total_items = sum(self.info["analog_channels"][channel]["block_num_items"])
