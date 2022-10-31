@@ -44,6 +44,14 @@ def load_directory(directory_name, check_existing=True, save_data=False, save_na
             return data
         except FileNotFoundError:
             pass
+        try:
+            if (save_name[-7:] != ".pickle") and (save_name[-4:] != ".pkl"):
+                save_name = save_name + ".pickle"
+            with open(save_name, 'rb') as fp:
+                data = pickle.load(fp)
+            return data
+        except FileNotFoundError:
+            pass
         print("Could not find existing Maestro file. Recomputing from scratch.")
 
     if not os.path.isdir(directory_name):
