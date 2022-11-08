@@ -1,7 +1,5 @@
 import operator
 import numpy as np
-import ReadMaestro.utils.PL2_read
-
 
 
 
@@ -264,9 +262,9 @@ def add_plexon_events(maestro_data, pl2_reader, maestro_pl2_chan_offset=3,
                                               (pl2_trial_events[0, event_ind + 1] - pl2_trial_events[0, event_ind]))
                     if aligment_difference > 0.1:
                         remove_ind.append(trial)
-                        print("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {} and event number {} and will be removed.".format(trial, event_num))
+                        print("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {0} and event number {1} and will be removed.".format(trial, event_num))
                         break
-                        # raise ValueError("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {} and event number {}.".format(trial, event_num))
+                        # raise ValueError("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {0} and event number {1}.".format(trial, event_num))
 
                 # Re-stack plexon events for output by lists of channel number so they match Maestro data in maestro_data[trial]['events']
                 if event_num > 0:
