@@ -1,5 +1,8 @@
 import operator
 import numpy as np
+import os.path
+import pickle
+from ReadMaestro.utils.PL2_read import PL2Reader
 
 
 
@@ -107,6 +110,32 @@ def find_first_value(search_array, value, relation='='):
     return(index_out)
 
 
+def is_maestro_pl2_synced(maestro_data, pl2_file):
+    """ Checks if a given listed of maestro_data trials are all synced with the
+    input pl2_file name and returns True if yes and False if no. """
+    is_synced = True
+    _, pl2_file = os.path.split(pl2_file)
+    for t_ind, t in enumerate(maestro_data):
+        if not ('pl2_synced' in t.keys()):
+            is_synced = False
+            print("failed pl2_synced in trial {0}".format(t_ind))
+            break
+        if not ('pl2_file' in t.keys()):
+            is_synced = False
+            print("failed pl2_file in trial {0}".format(t_ind))
+            break
+        if not t['pl2_synced']:
+            is_synced = False
+            print("failed pl2_synced in trial {0}".format(t_ind))
+            break
+        if t['pl2_file'] != pl2_file:
+            is_synced = False
+            print("failed pl2_file in trial {0}".format(t_ind))
+            break
+
+    return is_synced
+
+
 """ Reads the Plexon strobe inputs by looking for the file saved code from Maestro.
     The number of file saved codes should match the number of trials that were saved.
     It then reads backward to find the last trial start code before the current
@@ -177,15 +206,17 @@ def read_pl2_strobes(pl2_reader):
     XS2 on Plexon event channel 02, and Maestro digital out pulse 01 is on Plexon
     channel 04, 02 is channel 05, and so on, i.e. maestro_pl2_chan_offset = 3.
     The maestro_data input is modified IN PLACE to contain the fields
-    "plexon_start_stop" and "plexon_events".
+    "plexon_start_stop", "plexon_events", "pl2_file", "pl2_synced".
+    Can be resaved in 'save_name' if option is input.
 
     maestro_data is a list of maestro trial dictionaries as output by
         ReadMaestro.maestro_read.load_directory.
     pl2_reader
     """
-def add_plexon_events(maestro_data, pl2_reader, maestro_pl2_chan_offset=3,
-                        xs2_evt=2, max_pl2_event_num=9):
+def add_plexon_events(maestro_data, fname_PL2, maestro_pl2_chan_offset=3,
+                        xs2_evt=2, max_pl2_event_num=9, save_name=None):
 
+    pl2_reader = PL2Reader(fname_PL2)
     trial_strobe_info = read_pl2_strobes(pl2_reader)
 
     # Read in all the event channels that have data and concatenate their channel number and event times
@@ -203,6 +234,8 @@ def add_plexon_events(maestro_data, pl2_reader, maestro_pl2_chan_offset=3,
     pl2_event_index = 0
     remove_ind = []
     for trial in range(0, len(trial_strobe_info)):
+        _, maestro_data[trial]['pl2_file'] = os.path.split(pl2_reader.filename)
+        maestro_data[trial]['pl2_synced'] = False
         # Check if Plexon strobe and Maestro file names match
         if trial_strobe_info[trial]['trial_file'] in maestro_data[trial]['filename']:
 
@@ -275,6 +308,7 @@ def add_plexon_events(maestro_data, pl2_reader, maestro_pl2_chan_offset=3,
                 else:
                     # This is probably an error
                     print('FOUND A START STOP CODE IN TRIAL EVENTS!? PROBABLY AN ERROR')
+            maestro_data[trial]['pl2_synced'] = True
 
         else:
             # This is an error that I am not sure what to do with, unless file names have been changed for some reason
@@ -290,5 +324,15 @@ def add_plexon_events(maestro_data, pl2_reader, maestro_pl2_chan_offset=3,
         for index in remove_ind:
             print("Trial {} did not have matching Plexon and Maestro events and was removed".format(index))
             del maestro_data[index]
+
+    if save_name is not None:
+        if isinstance(save_name, str):
+            if (save_name[-7:] != ".pickle") and (save_name[-4:] != ".pkl"):
+                save_name = save_name + ".pickle"
+            print("Saving Maestro trial data as:", save_name)
+            with open(save_name, 'wb') as fp:
+                pickle.dump(maestro_data, fp, protocol=-1)
+        else:
+            print("Unrecognized type {0} for save_name {1}, saving skipped!".format(type(save_name), save_name))
 
     return maestro_data
