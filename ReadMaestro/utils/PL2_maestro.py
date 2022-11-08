@@ -255,16 +255,19 @@ def add_plexon_events(maestro_data, pl2_reader, maestro_pl2_chan_offset=3,
                 pl2_event_index = new_pl2_event_index
                 pl2_trial_events[:, event_ind + 1] = pl2_events_times[:, pl2_event_index]
 
-                # Compare Maestro and Plexon inter-event times
-                if event_ind > 0:
-                    # Need to convert Maestro times to ms
-                    aligment_difference = abs(1000*(maestro_events_times[0, event_ind] - maestro_events_times[0, event_ind-1]) -
+                # Compare Maestro and Plexon inter-event times, Need to convert Maestro times to ms
+                if event_ind == 0:
+                    # Check first event against the XS2 trial start event
+                    aligment_difference = abs(1000 * (maestro_events_times[0, event_ind]) -
+                                              (pl2_trial_events[0, event_ind + 1] - pl2_trial_events[0, 0]))
+                else:
+                    aligment_difference = abs(1000 * (maestro_events_times[0, event_ind] - maestro_events_times[0, event_ind-1]) -
                                               (pl2_trial_events[0, event_ind + 1] - pl2_trial_events[0, event_ind]))
-                    if aligment_difference > 0.1:
-                        remove_ind.append(trial)
-                        print("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {0} and event number {1} and will be removed.".format(trial, event_num))
-                        break
-                        # raise ValueError("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {0} and event number {1}.".format(trial, event_num))
+                if aligment_difference > 0.1:
+                    remove_ind.append(trial)
+                    print("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {0} and event number {1} and will be removed.".format(trial, event_num))
+                    break
+                    # raise ValueError("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {0} and event number {1}.".format(trial, event_num))
 
                 # Re-stack plexon events for output by lists of channel number so they match Maestro data in maestro_data[trial]['events']
                 if event_num > 0:
