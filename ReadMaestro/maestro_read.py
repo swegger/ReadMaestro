@@ -29,9 +29,21 @@ def load_directory(directory_name, check_existing=True, save_data=False, save_na
 
     Loads a complete directory of maestro files as a list of dictionaries.
     The filenames are assumed to be in the of the form *.[0-9][0-9][0-9][0-9].
-    This function attempts to load the files in order of their suffix
+    This function attempts to load the files in order of their suffix.
+    check_existing true will search for existing pickle files starting with the
+    input save_name and then the input directory name by standard naming
+    default conventions.
     """
     if check_existing:
+        if save_name is not None:
+            try:
+                if (save_name[-7:] != ".pickle") and (save_name[-4:] != ".pkl"):
+                    save_name = save_name + ".pickle"
+                with open(save_name, 'rb') as fp:
+                    data = pickle.load(fp)
+                return data
+            except FileNotFoundError:
+                pass
         try:
             with open(directory_name + ".pickle", 'rb') as fp:
                 data = pickle.load(fp)
@@ -40,14 +52,6 @@ def load_directory(directory_name, check_existing=True, save_data=False, save_na
             pass
         try:
             with open(directory_name + "_maestro.pickle", 'rb') as fp:
-                data = pickle.load(fp)
-            return data
-        except FileNotFoundError:
-            pass
-        try:
-            if (save_name[-7:] != ".pickle") and (save_name[-4:] != ".pkl"):
-                save_name = save_name + ".pickle"
-            with open(save_name, 'rb') as fp:
                 data = pickle.load(fp)
             return data
         except FileNotFoundError:
