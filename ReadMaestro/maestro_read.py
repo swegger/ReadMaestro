@@ -24,7 +24,8 @@ import math
 import pickle
 
 
-def load_directory(directory_name, check_existing=True, save_data=False, save_name=None):
+def load_directory(directory_name, check_existing=True, save_data=False,
+                   save_name=None, return_loaded_existing=False):
     """Load a directory of maestro files
 
     Loads a complete directory of maestro files as a list of dictionaries.
@@ -34,6 +35,7 @@ def load_directory(directory_name, check_existing=True, save_data=False, save_na
     input save_name and then the input directory name by standard naming
     default conventions.
     """
+    loaded_existing = False
     if check_existing:
         if save_name is not None:
             try:
@@ -41,19 +43,31 @@ def load_directory(directory_name, check_existing=True, save_data=False, save_na
                     save_name = save_name + ".pickle"
                 with open(save_name, 'rb') as fp:
                     data = pickle.load(fp)
-                return data
+                loaded_existing = True
+                if return_loaded_existing:
+                    return data, loaded_existing
+                else:
+                    return data
             except FileNotFoundError:
                 pass
         try:
             with open(directory_name + ".pickle", 'rb') as fp:
                 data = pickle.load(fp)
-            return data
+            loaded_existing = True
+            if return_loaded_existing:
+                return data, loaded_existing
+            else:
+                return data
         except FileNotFoundError:
             pass
         try:
             with open(directory_name + "_maestro.pickle", 'rb') as fp:
                 data = pickle.load(fp)
-            return data
+            loaded_existing = True
+            if return_loaded_existing:
+                return data, loaded_existing
+            else:
+                return data
         except FileNotFoundError:
             pass
         print("Could not find existing Maestro file. Recomputing from scratch.")
@@ -87,7 +101,10 @@ def load_directory(directory_name, check_existing=True, save_data=False, save_na
         with open(save_name, 'wb') as fp:
             pickle.dump(data, fp, protocol=-1)
 
-    return data
+    if return_loaded_existing:
+        return data, loaded_existing
+    else:
+        return data
 
 
 def load(filename):
