@@ -124,10 +124,10 @@ def is_maestro_pl2_synced(maestro_data, pl2_file):
             is_synced = False
             print("failed pl2_file in trial {0}".format(t_ind))
             break
-        if not t['pl2_synced']:
-            is_synced = False
-            print("failed pl2_synced in trial {0}".format(t_ind))
-            break
+        # if not t['pl2_synced']:
+        #     is_synced = False
+        #     print("failed pl2_synced in trial {0}".format(t_ind))
+        #     break
         if t['pl2_file'] != pl2_file:
             is_synced = False
             print("failed pl2_file in trial {0}".format(t_ind))
@@ -207,14 +207,14 @@ def read_pl2_strobes(pl2_reader):
     channel 04, 02 is channel 05, and so on, i.e. maestro_pl2_chan_offset = 3.
     The maestro_data input is modified IN PLACE to contain the fields
     "plexon_start_stop", "plexon_events", "pl2_file", "pl2_synced".
-    Can be resaved in 'save_name' if option is input.
 
     maestro_data is a list of maestro trial dictionaries as output by
         ReadMaestro.maestro_read.load_directory.
     pl2_reader
     """
 def add_plexon_events(maestro_data, fname_PL2, maestro_pl2_chan_offset=3,
-                        xs2_evt=2, max_pl2_event_num=9, save_name=None):
+                        xs2_evt=2, max_pl2_event_num=9,
+                        remove_bad_inds=False):
 
     pl2_reader = PL2Reader(fname_PL2)
     trial_strobe_info = read_pl2_strobes(pl2_reader)
@@ -298,7 +298,7 @@ def add_plexon_events(maestro_data, fname_PL2, maestro_pl2_chan_offset=3,
                                               (pl2_trial_events[0, event_ind + 1] - pl2_trial_events[0, event_ind]))
                 if aligment_difference > 0.1:
                     remove_ind.append(trial)
-                    print("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {0} and event number {1} and will be removed.".format(trial, event_num))
+                    print("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {0} and event number {1}.".format(trial, event_num))
                     break
                     # raise ValueError("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {0} and event number {1}.".format(trial, event_num))
 
@@ -315,24 +315,18 @@ def add_plexon_events(maestro_data, fname_PL2, maestro_pl2_chan_offset=3,
             print("Plexon filename {} and Maestro filename {} don't match!".format(trial_strobe_info[trial]['trial_file'], maestro_data[trial]['filename']))
 
     if len(maestro_data) != len(trial_strobe_info):
-        # At this point it already went through all trial_strobe_info successfully, so assume any extra trials were dropped
-        print("The {} extra trials on the end of maestro_data than Plexon strobes were removed by maestroPL2.assign_trial_events.".format(len(maestro_data) - len(trial_strobe_info)))
-        del maestro_data[len(trial_strobe_info):]
+        # At this point it already went through all trial_strobe_info successfully, so assume any extra trials were dropped and could be removed
+        print("Found {} extra trials on the end of maestro_data compared to Plexon strobes.".format(len(maestro_data) - len(trial_strobe_info)))
+        for index in range(len(trial_strobe_info), len(maestro_data)):
+            remove_ind.append(index)
+            maestro_data[index]['pl2_synced'] = False
 
-    if len(remove_ind) > 0:
+    if ( (len(remove_ind) > 0) and (remove_bad_inds) ):
+        # Want these inds in reverse order
         remove_ind.reverse()
-        for index in remove_ind:
-            print("Trial {} did not have matching Plexon and Maestro events and was removed".format(index))
-            del maestro_data[index]
-
-    if save_name is not None:
-        if isinstance(save_name, str):
-            if (save_name[-7:] != ".pickle") and (save_name[-4:] != ".pkl"):
-                save_name = save_name + ".pickle"
-            print("Saving Maestro trial data as:", save_name)
-            with open(save_name, 'wb') as fp:
-                pickle.dump(maestro_data, fp, protocol=-1)
-        else:
-            print("Unrecognized type {0} for save_name {1}, saving skipped!".format(type(save_name), save_name))
+        if remove_bad_inds:
+            for index in remove_ind:
+                print("Trial {} did not have matching Plexon and Maestro events and was removed".format(index))
+                del maestro_data[index]
 
     return maestro_data
