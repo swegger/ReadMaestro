@@ -118,11 +118,11 @@ def is_maestro_pl2_synced(maestro_data, pl2_file):
     for t_ind, t in enumerate(maestro_data):
         if not ('pl2_synced' in t.keys()):
             is_synced = False
-            print("failed pl2_synced in trial {0}".format(t_ind))
+            print("Failed pl2_synced in trial {0} for no'pl2_synced' key.".format(t_ind))
             break
         if not ('pl2_file' in t.keys()):
             is_synced = False
-            print("failed pl2_file in trial {0}".format(t_ind))
+            print("Failed pl2_file in trial {0} for no 'pl2_file' key.".format(t_ind))
             break
         # if not t['pl2_synced']:
         #     is_synced = False
@@ -130,7 +130,7 @@ def is_maestro_pl2_synced(maestro_data, pl2_file):
         #     break
         if t['pl2_file'] != pl2_file:
             is_synced = False
-            print("failed pl2_file in trial {0}".format(t_ind))
+            print("Failed pl2_file in trial {0} for mismatched pl2 file name of {1} instead of {2}.".format(t_ind, t['pl2_file'], pl2_file))
             break
 
     return is_synced
@@ -299,8 +299,11 @@ def add_plexon_events(maestro_data, fname_PL2, maestro_pl2_chan_offset=3,
                 if aligment_difference > 0.1:
                     remove_ind.append(trial)
                     print("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {0} and event number {1}.".format(trial, event_num))
+                    maestro_data[trial]['pl2_synced'] = False
                     break
                     # raise ValueError("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {0} and event number {1}.".format(trial, event_num))
+                else:
+                    maestro_data[trial]['pl2_synced'] = True
 
                 # Re-stack plexon events for output by lists of channel number so they match Maestro data in maestro_data[trial]['events']
                 if event_num > 0:
@@ -308,8 +311,6 @@ def add_plexon_events(maestro_data, fname_PL2, maestro_pl2_chan_offset=3,
                 else:
                     # This is probably an error
                     print('FOUND A START STOP CODE IN TRIAL EVENTS!? PROBABLY AN ERROR')
-            maestro_data[trial]['pl2_synced'] = True
-
         else:
             # This is an error that I am not sure what to do with, unless file names have been changed for some reason
             print("Plexon filename {} and Maestro filename {} don't match!".format(trial_strobe_info[trial]['trial_file'], maestro_data[trial]['filename']))
@@ -320,6 +321,7 @@ def add_plexon_events(maestro_data, fname_PL2, maestro_pl2_chan_offset=3,
         for index in range(len(trial_strobe_info), len(maestro_data)):
             remove_ind.append(index)
             maestro_data[index]['pl2_synced'] = False
+            _, maestro_data[index]['pl2_file'] = os.path.split(pl2_reader.filename)
 
     if ( (len(remove_ind) > 0) and (remove_bad_inds) ):
         # Want these inds in reverse order
