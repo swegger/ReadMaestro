@@ -218,6 +218,7 @@ def add_plexon_events(maestro_data, fname_PL2, maestro_pl2_chan_offset=3,
 
     pl2_reader = PL2Reader(fname_PL2)
     trial_strobe_info = read_pl2_strobes(pl2_reader)
+    print("Syncing PL2 events for file {0} with {1}.".format(maestro_data, fname_PL2))
 
     # Read in all the event channels that have data and concatenate their channel number and event times
     # into one big long numpy array.  Pad first column with -1.
