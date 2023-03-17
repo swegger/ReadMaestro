@@ -153,6 +153,9 @@ def is_maestro_pl2_synced(maestro_data, pl2_file):
 def read_pl2_strobes(pl2_reader):
 
     PL2_strobe_data = pl2_reader.load_channel('strobed')
+    if PL2_strobe_data is None:
+        print("WARNING: No strobe data found!")
+        return None
     # This is for 32 bit adjustment but should be read in 16 bit now but still check
     if np.all(PL2_strobe_data['strobed'] >= 32768):
         strobe_nums = PL2_strobe_data['strobed'] - 32768
@@ -200,6 +203,12 @@ def read_pl2_strobes(pl2_reader):
     return trial_strobe_info
 
 
+class NoEventsError(Exception):
+    # Error class indicating that ZERO PL2 events were found and so sync and
+    # analysis presumably cannot continue
+    pass
+
+
 """ Based on the strobe data read in from read_pl2_strobes, this function finds the
     DIO pulses from Maestro detected by Plexon and saves their times in an array
     matched with the channel they were detected on.  e.g. Maestro outputs
@@ -229,7 +238,9 @@ def add_plexon_events(maestro_data, fname_PL2, maestro_pl2_chan_offset=3,
             if event_data is not None:
                 pl2_events_times = np.concatenate((pl2_events_times, np.stack([event_data['timestamps'] * 1000,
                                                                               float(event_key[3:]) * np.ones_like(event_data['timestamps'])], axis=0)), axis=1)
-
+    if pl2_events_times.shape == (2, 1):
+        # No events were found in above!
+        raise NoEventsError("No events found for file {0} so data cannot be synced or analyzed.".format(fname_PL2))
     # Sort the array of event channel numbers and event times by timestamps and set initial index to 0
     pl2_events_times = pl2_events_times[:, np.argsort(pl2_events_times[0, :])]
     pl2_event_index = 0
