@@ -73,7 +73,7 @@ def load_directory(directory_name, check_existing=True, save_data=False,
         print("Could not find existing Maestro file. Recomputing from scratch.")
 
     if not os.path.isdir(directory_name):
-        raise RuntimeError('Directory name {:s} is not valid'.format(directory_name))
+        raise RuntimeError(f"Directory name {directory_name} is not valid.")
     pattern = re.compile('\.[0-9]+$')
     filenames = [f for f in os.listdir(directory_name) if os.path.isfile(os.path.join(directory_name, f)) and pattern.search(f) is not None]
 
@@ -110,7 +110,7 @@ def load_directory(directory_name, check_existing=True, save_data=False,
 def load(filename):
     """Load a maestro file"""
     if not os.path.isfile(filename):
-        raise RuntimeError('File {:s} does not exist'.format(filename))
+        raise RuntimeError(f"File {filename} does not exist.")
     fp = open(filename, 'rb')
     buffer = fp.read()
     fp.close()
