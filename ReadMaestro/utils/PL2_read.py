@@ -3,7 +3,8 @@ Copyright (c) 2018 David Herzfeld
 
 Written by David J. Herzfeld <herzfeldd@gmail.com>
 
-I changed this to be a class that keeps basic information to make
+Nathan Hall:
+Modified to be a class that keeps basic information to make
 reading the files easier.
 """
 
@@ -276,7 +277,7 @@ class PL2Reader(object):
 
         results["timestamps"] = np.array(results["timestamps"])
         results["strobed"] = np.array(results["strobed"])
-        results["timestamps"] = results["timestamps"].astype(np.float)
+        results["timestamps"] = results["timestamps"].astype(np.float64)
         results["timestamps"] /= self.info["timestamp_frequency"]
 
         return results
