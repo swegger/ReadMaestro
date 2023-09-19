@@ -271,19 +271,22 @@ def add_plexon_events(maestro_data, fname_PL2, maestro_pl2_chan_offset=3,
             pl2_trial_events[:, 0] = pl2_events_times[:, pl2_event_index]
             pl2_trial_events[:, -1] = pl2_events_times[:, move_index_next(pl2_events_times[1, :], xs2_evt, pl2_event_index, '=')]
 
+            # Check trial duration according to plexon XS2 and Maestro file
+            pl2_duration = pl2_trial_events[0, -1] - pl2_trial_events[0, 0]
+            maestro_duration = maestro_data[trial]['header']['_num_saved_scans']
+            if np.abs(pl2_duration - maestro_duration) > 40.0:
+                print("WARNING: difference between recorded pl2 trial duration {0} and maestro trial duration {1} is over 40 ms. This could mean XS2 inital pulse was delayed and unreliable.".format(pl2_duration, maestro_duration))
+            elif np.abs(pl2_duration - maestro_duration) > 2.0:
+                # This happens due to the shitty REB system on some Yoda files. XS2 stop is correct so just set PL2 start based on this and Maestro duration
+                pl2_trial_events[0, 0] = pl2_trial_events[0, -1] - maestro_duration
             # Save start and stop for output
             maestro_data[trial]['plexon_start_stop'] = (pl2_trial_events[0, 0], pl2_trial_events[0, -1])
 
-            # Check trial duration according to plexon XS2 and Maestro file
-            pl2_duration = maestro_data[trial]['plexon_start_stop'][1] - maestro_data[trial]['plexon_start_stop'][0]
-            maestro_duration = maestro_data[trial]['header']['_num_saved_scans']
-            if np.abs(pl2_duration - maestro_duration) > 2.0:
-                print("WARNING: difference between recorded pl2 trial duration {0} and maestro trial duration {1} is over 2 ms. This could mean XS2 inital pulse was delayed and unreliable.".format(pl2_duration, maestro_duration))
 
             # Again, only include Plexon events that were observed in Maestro by looking
             # through all Maestro events and finding their counterparts in Plexon
             # according to the mapping defined in maestro_pl2_chan_offset
-            maestro_data[trial]['plexon_events'] = [[] for x in range(0, len(maestro_data[trial]['events']))]
+            maestro_data[trial]['plexon_events'] = [[] for _ in range(0, len(maestro_data[trial]['events']))]
             for event_ind, event_num in enumerate(maestro_events_times[1, :]):
                 event_num = np.int64(event_num)
                 if (event_num + maestro_pl2_chan_offset) > max_pl2_event_num:
@@ -308,9 +311,12 @@ def add_plexon_events(maestro_data, fname_PL2, maestro_pl2_chan_offset=3,
                 else:
                     aligment_difference = abs(1000 * (maestro_events_times[0, event_ind] - maestro_events_times[0, event_ind-1]) -
                                               (pl2_trial_events[0, event_ind + 1] - pl2_trial_events[0, event_ind]))
-                if aligment_difference > 0.1:
+                
+                if ( (aligment_difference > 0.1) and (event_num != 1) ):
+                    # Event 1 is not aligned in Yoda because the REB system didn't work
                     remove_ind.append(trial)
                     print("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {0} and event number {1}.".format(trial, event_num))
+                    print(f"Alignment difference = {aligment_difference}")
                     maestro_data[trial]['pl2_synced'] = False
                     break
                     # raise ValueError("Plexon and Maestro inter-event intervals do not match within 0.1 ms for trial {0} and event number {1}.".format(trial, event_num))
