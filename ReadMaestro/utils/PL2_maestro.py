@@ -1,7 +1,6 @@
 import operator
 import numpy as np
 import os.path
-import pickle
 from ReadMaestro.utils.PL2_read import PL2Reader
 
 

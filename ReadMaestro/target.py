@@ -9,6 +9,8 @@ def compress_target_data(maestro_data):
         try:
             if trial['compressed_target']:
                 continue
+            else:
+                raise KeyError() # Force into doing compression below
         except KeyError:
             xpos = []
             ypos = []

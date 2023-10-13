@@ -88,7 +88,7 @@ def load_directory(directory_name, check_existing=True, save_data=False,
             continue
 
     if save_name is not None:
-        save_data = True
+        # save_data = True
         if (save_name[-7:] != ".pickle") and (save_name[-4:] != ".pkl"):
             save_name = save_name + ".pickle"
     if save_data:
