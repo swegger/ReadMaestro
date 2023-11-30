@@ -541,10 +541,10 @@ def _read_date_time(fp):
     data["minute"] = _read(fp, "<I")
     data["hour"] = _read(fp, "<I")
     data["month_day"] = _read(fp, "<I")
-    data["month"] = _read(fp, "<I")
-    data["year"] = _read(fp, "<I")
-    data["week_day"] = _read(fp, "<I")
-    data["year_day"] = _read(fp, "<I")
+    data["month"] = _read(fp, "<I") + 1 # This reads in starting from mont 0 for some reason
+    data["year"] = _read(fp, "<I") + 1900 # This reads in as year since 1900
+    data["week_day"] = _read(fp, "<I") # This is maybe also offset such that 0 = Sunday
+    data["year_day"] = _read(fp, "<I") + 1 # This also starts at Jan 1 = 0
     data["is_daylight_savings"] = _read(fp, "<I")
     data["millisecond"] = _read(fp, "<I")
     return data
