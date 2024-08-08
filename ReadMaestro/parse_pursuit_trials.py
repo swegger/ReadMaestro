@@ -92,7 +92,7 @@ def pursuitData(data,trialIDs=[],directions=[],speeds=[],coherences=[],perturbat
 
 class pursuitDataObject(object):
     """
-    Defines the object that collates pursuit data of a specific experiment type for a given dates data.
+    Defines the object that collates pursuit data of a specific experiment type from a given date.
     """
 
     def __init__(self):
@@ -101,6 +101,8 @@ class pursuitDataObject(object):
         self.directions = []
         self.speeds = []
         self.coherences = []
+        self.perturbations = []
+        self.saccades = []
 
     def setName(self,data):
         self.name = data[0].file_name[0:-17:]
@@ -128,6 +130,9 @@ class pursuitDataObject(object):
         acceptedIndex = 0
         dirs = []
         spds = []
+        cohs = []
+        perts = []
+        
         for triali in range(trialN):
             trial_str = data[triali].header.trial_name
 
@@ -143,9 +148,32 @@ class pursuitDataObject(object):
                     if trialIDcheck:
                         break
             
+            dirsTemp = None
+            spdsTemp = None
+            cohsTemp = None
+            pertsTemp = None
+            
+            # Set condition values to true if conditions are not specified by user
+            if not directions:
+                directionCheck = True
+            else:
+                directionCheck = False
+            if not speeds:               
+                speedCheck = True
+            else:
+                speedCheck = False
+            if not coherences:
+                cohsCheck = True
+            else:
+                cohsCheck = False
+            if not perturbations:
+                pertsCheck = True
+            else:
+                pertsCheck = False
+
+
             pattern = re.compile('\d{3}')
             iterator = pattern.finditer(trial_str)
-            a = []
             for match in iterator:
                 spans = match.span()
                 if trial_str[spans[0]-1] == 'd':
@@ -160,21 +188,63 @@ class pursuitDataObject(object):
                         speedCheck = True
                     else:
                         speedCheck = False
+                elif trial_str[spans[0]-1] == 'h':
+                    if not coherences or float(trial[spans[0]:spans[1]]) in coherences:
+                        cohsTemp = float(trial_str[spans[0]:spans[1]])
+                        cohsCheck = True
+                    else:
+                        cohsCheck = False
+                elif trial_str[spans[0]-1] == 'p':
+                    if not perturbations or float(trial[spans[0]:spans[1]]) in perturbations:
+                        pertsTemp = float(trial_str[spans[0]:spans[1]])
+                        pertsCheck = True
+                    else:
+                        pertsCheck = False
 
-            if trialIDcheck and directionCheck and speedCheck:
+
+            if trialIDcheck and directionCheck and speedCheck and cohsCheck and pertsCheck:
                 hvelocity[0:len(data[triali].ai_data[0]),acceptedIndex] = np.array(data[triali].ai_data[2])*0.09189
                 vvelocity[0:len(data[triali].ai_data[0]),acceptedIndex] = np.array(data[triali].ai_data[3])*0.09189
                 acceptedIndex = acceptedIndex+1
                 dirs.append(dirsTemp)
                 spds.append(spdsTemp)
+                cohs.append(cohsTemp)
+                perts.append(pertsTemp)
 
         # Cleave remaining unfilled columns from data matrices
         hvelocity = hvelocity[:,:acceptedIndex]
         vvelocity = vvelocity[:,:acceptedIndex]
 
+        # Detect saccades and replace with NaNs
+        if hvelocity.size == 0:
+            sacInds = np.full_like(hvelocity,False)
+        else:
+            sacInds = self.saccadeDetect(hvelocity,vvelocity)
+            hvelocity[sacInds] = np.nan
+            vvelocity[sacInds] = np.nan
+
         self.hvelocities = hvelocity
         self.vvelocities = vvelocity
         self.directions = dirs
         self.speeds = spds
+        self.coherences = cohs
+        self.perturbations = perts
+        self.saccades = sacInds
 
-        return hvelocity, vvelocity, dirs, spds
+        return hvelocity, vvelocity, dirs, spds, cohs, perts, sacInds
+    
+    def saccadeDetect(hv,vv,accelerationThreshold=1.1,windowSize=40):
+        '''
+        Simple method to detect saccadic eye movements from eye velocity data and return the indices of putative saccades
+        '''
+        ha = np.diff(hv,n=1,axis=0,prepend=0)
+        va = np.diff(vv,n=1,axis=0,prepend=0)
+
+        inds = np.add(np.abs(ha) > accelerationThreshold, np.abs(va) > accelerationThreshold)
+        filt = np.ones((windowSize,))/windowSize
+        sinds = np.apply_along_axis(lambda m: np.convolve(m, filt, mode='same'), axis=0, arr=inds)
+        print(ha)
+        sacInds = np.full(ha.shape, False, dtype=bool)
+        sacInds[sinds>0] = True
+
+        return sacInds
