@@ -103,6 +103,8 @@ class pursuitDataObject(object):
         self.coherences = []
         self.perturbations = []
         self.saccades = []
+        self.rotationApplied = False
+        self.nansaccades = False
 
     def setName(self,data):
         self.name = data[0].file_name[0:-17:]
@@ -215,13 +217,11 @@ class pursuitDataObject(object):
         hvelocity = hvelocity[:,:acceptedIndex]
         vvelocity = vvelocity[:,:acceptedIndex]
 
-        # Detect saccades and replace with NaNs
+        # Detect saccades
         if hvelocity.size == 0:
             sacInds = np.full_like(hvelocity,False)
         else:
             sacInds = self.saccadeDetect(hvelocity,vvelocity)
-            hvelocity[sacInds] = np.nan
-            vvelocity[sacInds] = np.nan
 
         self.hvelocities = hvelocity
         self.vvelocities = vvelocity
@@ -233,6 +233,16 @@ class pursuitDataObject(object):
 
         return hvelocity, vvelocity, dirs, spds, cohs, perts, sacInds
     
+    def applyRotationToData(self):
+        self.hvelocities, self.vvelocities = self.rotateData(self.hvelocities,self.vvelocities,self.directions)
+        self.rotationApplied = True
+
+    def setSaccadeVelocitiesToNaN(self):
+        self.hvelocities[self.saccades] = np.nan
+        self.vvelocities[self.saccades] = np.nan
+        self.nansaccades = True
+        
+    
     def saccadeDetect(hv,vv,accelerationThreshold=1.1,windowSize=40):
         '''
         Simple method to detect saccadic eye movements from eye velocity data and return the indices of putative saccades
@@ -243,8 +253,16 @@ class pursuitDataObject(object):
         inds = np.add(np.abs(ha) > accelerationThreshold, np.abs(va) > accelerationThreshold)
         filt = np.ones((windowSize,))/windowSize
         sinds = np.apply_along_axis(lambda m: np.convolve(m, filt, mode='same'), axis=0, arr=inds)
-        print(ha)
         sacInds = np.full(ha.shape, False, dtype=bool)
         sacInds[sinds>0] = True
 
         return sacInds
+    
+    def rotateData(x,y,thetas):
+        '''
+        Method to rotate cartesian data to a common frame based on 
+        '''
+        xnew = x*np.cos(np.deg2rad(thetas)) + y*np.sin(np.deg2rad(thetas))
+        ynew = x*np.sin(np.deg2rad(thetas)) - y*np.cos(np.deg2rad(thetas))
+
+        return xnew, ynew
