@@ -16,79 +16,7 @@ import numpy as np
 import re
 import math
 import pickle
-
-def pursuitData(data,trialIDs=[],directions=[],speeds=[],coherences=[],perturbations=[]):
-    """
-    Finds horizontal and vertical eye velocities and assigns each
-    to their corresponding numpy array.
-    """
-
-    # Preliminary information and preallocation
-    trialN = len(data)
-    dataPointsMax = 0
-    for triali in range(trialN):
-        dataPointsMax = max(dataPointsMax,len(data[triali].ai_data[0]))
-
-
-    hvelocity = np.empty((dataPointsMax,trialN,))
-    hvelocity[:] = np.nan
-
-    vvelocity = np.empty((dataPointsMax,trialN,))
-    vvelocity[:] = np.nan
-
-    # Iterate through trials and insert eye velocities from matching experiment IDs and trials into array
-    acceptedIndex = 0
-    dirs = []
-    spds = []
-    for triali in range(trialN):
-        trial_str = data[triali].header.trial_name
-
-        if not trialIDs:
-            trialIDcheck = True
-        else:
-            trialIDcheck = False
-            for id in trialIDs:
-                if trial_str.__contains__(id):
-                    trialIDcheck = True
-                else:
-                    trialIDcheck = False
-                if trialIDcheck:
-                    break
-        
-        pattern = re.compile('\d{3}')
-        iterator = pattern.finditer(trial_str)
-        a = []
-        for match in iterator:
-            spans = match.span()
-            if trial_str[spans[0]-1] == 'd':
-                if not directions or float(trial_str[spans[0]:spans[1]]) in directions:
-                    dirsTemp = float(trial_str[spans[0]:spans[1]])
-                    directionCheck = True
-                else:
-                    directionCheck = False
-            elif trial_str[spans[0]-1] == 's':
-                if not speeds or float(trial_str[spans[0]:spans[1]]) in speeds:
-                    spdsTemp = float(trial_str[spans[0]:spans[1]])
-                    speedCheck = True
-                else:
-                    speedCheck = False
-
-        if trialIDcheck and directionCheck and speedCheck:
-            hvelocity[0:len(data[triali].ai_data[0]),acceptedIndex] = np.array(data[triali].ai_data[2])*0.09189
-            vvelocity[0:len(data[triali].ai_data[0]),acceptedIndex] = np.array(data[triali].ai_data[3])*0.09189
-            acceptedIndex = acceptedIndex+1
-            dirs.append(dirsTemp)
-            spds.append(spdsTemp)
-
-    # Cleave remaining unfilled columns from data matrices
-    hvelocity = hvelocity[:,:acceptedIndex]
-    vvelocity = vvelocity[:,:acceptedIndex]
-
-    return hvelocity, vvelocity, dirs, spds
-
-        
-
-        
+       
 
 class pursuitDataObject(object):
     """
@@ -105,6 +33,8 @@ class pursuitDataObject(object):
         self.saccades = []
         self.rotationApplied = False
         self.nansaccades = False
+        self.vel_theta = []
+        self.eye_t = []
 
     def setName(self,data):
         self.name = data[0].file_name[0:-17:]
@@ -134,6 +64,7 @@ class pursuitDataObject(object):
         spds = []
         cohs = []
         perts = []
+        vel_theta = []
         
         for triali in range(trialN):
             trial_str = data[triali].header.trial_name
@@ -212,6 +143,7 @@ class pursuitDataObject(object):
                 spds.append(spdsTemp)
                 cohs.append(cohsTemp)
                 perts.append(pertsTemp)
+                vel_theta.append(data[triali].header.vel_theta)
 
         # Cleave remaining unfilled columns from data matrices
         hvelocity = hvelocity[:,:acceptedIndex]
@@ -230,11 +162,13 @@ class pursuitDataObject(object):
         self.coherences = cohs
         self.perturbations = perts
         self.saccades = sacInds
+        self.vel_theta = vel_theta
+        self.eye_t = np.arange(0,len(hvelocity))
 
         return hvelocity, vvelocity, dirs, spds, cohs, perts, sacInds
     
     def applyRotationToData(self):
-        self.hvelocities, self.vvelocities = self.rotateData(self.hvelocities,self.vvelocities,self.directions)
+        self.hvelocities, self.vvelocities = self.rotateData(self.hvelocities,self.vvelocities,np.add(self.directions,self.vel_theta))
         self.rotationApplied = True
 
     def setSaccadeVelocitiesToNaN(self):
@@ -266,3 +200,12 @@ class pursuitDataObject(object):
         ynew = x*np.sin(np.deg2rad(thetas)) - y*np.cos(np.deg2rad(thetas))
 
         return xnew, ynew
+    
+    def computeMeanCov(x,axis=-1):
+        '''
+        Method for computing the mean and covariance while ignoring NaN data
+        '''
+        C = np.ma.cov(np.ma.masked_invalid(x.T), rowvar=False)
+        mu = np.nanmean(x,axis=axis)
+
+        return mu, C
