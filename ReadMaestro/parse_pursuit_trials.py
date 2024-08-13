@@ -3,7 +3,11 @@ Copyright (c) 2024 Seth Egger
 
 Written by Seth W. Egger <sethegger@gmail.com>
 
-Defines pursuit object and subclasses for each experiment type.
+Defines pursuit object and methods to extract data, identify saccades, 
+and replace saccade velocities from pursuit traces with NaNs.
+
+To do: Define methods to interpolate NaNs - 1. Classic linear interpolation; 2. Inference using a Gaussian process
+To do: Define methods to shuffle saccade indices with respect to trial number so that interpolation performance can be measured
 
 Finds appropriate pursuit trials in a data set and collates the results.
 """
@@ -122,7 +126,7 @@ class pursuitDataObject(object):
                     else:
                         speedCheck = False
                 elif trial_str[spans[0]-1] == 'h':
-                    if not coherences or float(trial[spans[0]:spans[1]]) in coherences:
+                    if not coherences or float(trial_str[spans[0]:spans[1]]) in coherences:
                         cohsTemp = float(trial_str[spans[0]:spans[1]])
                         cohsCheck = True
                     else:
@@ -177,7 +181,7 @@ class pursuitDataObject(object):
         self.nansaccades = True
         
     
-    def saccadeDetect(hv,vv,accelerationThreshold=1.1,windowSize=40):
+    def saccadeDetect(hv,vv,accelerationThreshold=1.1,windowSize=60):
         '''
         Simple method to detect saccadic eye movements from eye velocity data and return the indices of putative saccades
         '''
@@ -209,3 +213,77 @@ class pursuitDataObject(object):
         mu = np.nanmean(x,axis=axis)
 
         return mu, C
+    
+    def linearInterpolation(x):
+        return x
+    
+    def conditionalGaussian(mu,Sig,f,nearSPD=True,x_indices=[]):
+        
+        # Set up variables
+        if not x_indices.any():
+            x_indices = np.zeros_like(mu, dtype=np.bool)
+            x_indices[:len(f)] = True     # Assume observations are of first q elements of length N vector mu
+
+
+        N = len(mu)
+        q = sum(x_indices)
+
+        # Reshape mean and covariance for partitioning
+        indsOrig = np.arange(N)
+        indsNew = np.concatenate((indsOrig[np.logical_not(x_indices)], indsOrig[x_indices]))
+        Inew, Jnew = np.meshgrid(indsNew, indsNew)
+        SigNew = np.empty_like(Sig)
+        for i in range(N):
+            for j in range(N):
+                SigNew[i,j] = Sig[Inew[i,j],Jnew[i,j]]     # Now covariance matrix is of form SigNew = [SigUnUn, SigUnObs; SigObsUn, SigObsObs]
+
+        # Partition mean and covariance
+        muObs = mu[x_indices]
+        muUn = mu[np.logical_not(x_indices)]
+
+        SigUnUn = SigNew[0:N-q,0:N-q]
+        SigUnObs = SigNew[0:N-q,N-q:]
+        SigObsObs = SigNew[N-q:,N-q:]
+        SigObsUn = SigNew[N-q:,0:N-q]
+
+        temp = SigUnObs @ np.linalg.inv(SigObsObs)
+        print(f.shape)
+        print(muObs.shape)
+        mu_ = muUn + np.dot(temp, f-muObs)
+        Sig_ = SigUnUn - temp  @ SigObsUn
+
+        # Local definitions of functions for computing the nearest positive semi-definate covariance matrix
+        # from Higham (2000) (see https://stackoverflow.com/questions/10939213/how-can-i-calculate-the-nearest-positive-semi-definite-matrix)
+        def _getAplus(A):
+            eigval, eigvec = np.linalg.eig(A)
+            Q = np.matrix(eigvec)
+            xdiag = np.matrix(np.diag(np.maximum(eigval, 0)))
+            return Q*xdiag*Q.T
+
+        def _getPs(A, W=None):
+            W05 = np.matrix(W**.5)
+            return  W05.I * _getAplus(W05 * A * W05) * W05.I
+
+        def _getPu(A, W=None):
+            Aret = np.array(A.copy())
+            Aret[W > 0] = np.array(W)[W > 0]
+            return np.matrix(Aret)
+
+        def nearPD(A, nit=10):
+            n = A.shape[0]
+            W = np.identity(n) 
+            # W is the matrix used for the norm (assumed to be Identity matrix here)
+            # the algorithm should work for any diagonal W
+            deltaS = 0
+            Yk = A.copy()
+            for k in range(nit):
+                Rk = Yk - deltaS
+                Xk = _getPs(Rk, W=W)
+                deltaS = Xk - Rk
+                Yk = _getPu(Xk, W=W)
+            return Yk
+        
+        if nearSPD and np.logical_not(np.any(np.isnan(Sig_))):
+            Sig_ = nearPD(Sig_)
+
+        return mu_, Sig_
