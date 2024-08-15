@@ -218,6 +218,14 @@ class pursuitDataObject(object):
         return x
     
     def conditionalGaussian(mu,Sig,f,nearSPD=True,x_indices=[]):
+        '''
+        Assuming a multivariate Gaussian as a generative process, we can infer unobserved values
+        from the mean (mu) and covariance (Sig) of the Gaussina process. User provides the 
+        observed values, f, and the indicies of observed (true) and unobserved (false) values,
+        x_indices. This function will partition mu and Sig into observed and unobseved values
+        and use the results to mean and covariance of unobserved values, conditioned on the
+        observed values, mu_ and Sig_, respectively.
+        '''
         
         # Set up variables
         if not x_indices.any():
@@ -248,7 +256,8 @@ class pursuitDataObject(object):
 
         temp = SigUnObs @ np.linalg.inv(SigObsObs)
         print(f.shape)
-        print(muObs.shape)
+        #print(muUn)
+        print(temp.shape)
         mu_ = muUn + np.dot(temp, f-muObs)
         Sig_ = SigUnUn - temp  @ SigObsUn
 
@@ -286,4 +295,4 @@ class pursuitDataObject(object):
         if nearSPD and np.logical_not(np.any(np.isnan(Sig_))):
             Sig_ = nearPD(Sig_)
 
-        return mu_, Sig_
+        return mu_, Sig_, SigUnObs, SigObsObs
