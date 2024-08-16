@@ -180,6 +180,9 @@ class pursuitDataObject(object):
         self.vvelocities[self.saccades] = np.nan
         self.nansaccades = True
         
+    def scaleVelocities(self):
+        self.hvelocities = self.hvelocities/self.speeds
+        self.vvelocities = self.vvelocities/self.speeds
     
     def saccadeDetect(hv,vv,accelerationThreshold=1.1,windowSize=60):
         '''
@@ -217,7 +220,7 @@ class pursuitDataObject(object):
     def linearInterpolation(x):
         return x
     
-    def conditionalGaussian(mu,Sig,f,nearSPD=True,x_indices=[]):
+    def conditionalGaussian(mu,Sig,f,nearSPD=True,x_indices=[],obsNoise=0):
         '''
         Assuming a multivariate Gaussian as a generative process, we can infer unobserved values
         from the mean (mu) and covariance (Sig) of the Gaussina process. User provides the 
@@ -251,7 +254,7 @@ class pursuitDataObject(object):
 
         SigUnUn = SigNew[0:N-q,0:N-q]
         SigUnObs = SigNew[0:N-q,N-q:]
-        SigObsObs = SigNew[N-q:,N-q:]
+        SigObsObs = SigNew[N-q:,N-q:] + obsNoise*np.identity(q)
         SigObsUn = SigNew[N-q:,0:N-q]
 
         temp = SigUnObs @ np.linalg.inv(SigObsObs)
