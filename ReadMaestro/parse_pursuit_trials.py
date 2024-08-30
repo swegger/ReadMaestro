@@ -20,6 +20,7 @@ import numpy as np
 import re
 import math
 import pickle
+import copy
        
 
 class pursuitDataObject(object):
@@ -132,7 +133,7 @@ class pursuitDataObject(object):
                     else:
                         cohsCheck = False
                 elif trial_str[spans[0]-1] == 'p':
-                    if not perturbations or float(trial[spans[0]:spans[1]]) in perturbations:
+                    if not perturbations or float(trial_str[spans[0]:spans[1]]) in perturbations:
                         pertsTemp = float(trial_str[spans[0]:spans[1]])
                         pertsCheck = True
                     else:
@@ -148,6 +149,7 @@ class pursuitDataObject(object):
                 cohs.append(cohsTemp)
                 perts.append(pertsTemp)
                 vel_theta.append(data[triali].header.vel_theta)
+
 
         # Cleave remaining unfilled columns from data matrices
         hvelocity = hvelocity[:,:acceptedIndex]
@@ -184,7 +186,7 @@ class pursuitDataObject(object):
         self.hvelocities = self.hvelocities/self.speeds
         self.vvelocities = self.vvelocities/self.speeds
     
-    def saccadeDetect(hv,vv,accelerationThreshold=1.1,windowSize=60):
+    def saccadeDetect(self, hv,vv,accelerationThreshold=1.1,windowSize=60):
         '''
         Simple method to detect saccadic eye movements from eye velocity data and return the indices of putative saccades
         '''
@@ -199,7 +201,7 @@ class pursuitDataObject(object):
 
         return sacInds
     
-    def rotateData(x,y,thetas):
+    def rotateData(self,x,y,thetas):
         '''
         Method to rotate cartesian data to a common frame based on 
         '''
@@ -207,8 +209,12 @@ class pursuitDataObject(object):
         ynew = x*np.sin(np.deg2rad(thetas)) - y*np.cos(np.deg2rad(thetas))
 
         return xnew, ynew
-    
-    def computeMeanCov(x,axis=-1):
+        
+    def permuteSaccades(self):
+        rng = np.random.default_rng()
+        self.saccades = rng.permutation(self.saccades,axis=1)
+
+    def computeMeanCov(self,x,axis=-1):
         '''
         Method for computing the mean and covariance while ignoring NaN data
         '''
@@ -217,17 +223,17 @@ class pursuitDataObject(object):
 
         return mu, C
     
-    def linearInterpolation(x):
+    def linearInterpolation(self,x):
         return x
     
-    def conditionalGaussian(mu,Sig,f,nearSPD=True,x_indices=[],obsNoise=0):
+    def conditionalGaussian(self,mu,Sig,f,nearSPD=False,x_indices=[],obsNoise=0):
         '''
         Assuming a multivariate Gaussian as a generative process, we can infer unobserved values
         from the mean (mu) and covariance (Sig) of the Gaussina process. User provides the 
         observed values, f, and the indicies of observed (true) and unobserved (false) values,
         x_indices. This function will partition mu and Sig into observed and unobseved values
-        and use the results to mean and covariance of unobserved values, conditioned on the
-        observed values, mu_ and Sig_, respectively.
+        and use the results to infer the mean and covariance of unobserved values mu_ and 
+        Sig_, respectively.
         '''
         
         # Set up variables
@@ -258,10 +264,8 @@ class pursuitDataObject(object):
         SigObsUn = SigNew[N-q:,0:N-q]
 
         temp = SigUnObs @ np.linalg.inv(SigObsObs)
-        print(f.shape)
-        #print(muUn)
-        print(temp.shape)
-        mu_ = muUn + np.dot(temp, f-muObs)
+        #print(np.dot(temp, f-muObs) - temp @ (f-muObs))
+        mu_ = muUn + temp @ (f-muObs) #np.dot(temp, f-muObs)
         Sig_ = SigUnUn - temp  @ SigObsUn
 
         # Local definitions of functions for computing the nearest positive semi-definate covariance matrix
