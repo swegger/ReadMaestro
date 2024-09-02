@@ -223,8 +223,10 @@ class pursuitDataObject(object):
 
         return mu, C
     
-    def linearInterpolation(self,x):
-        return x
+    def linearInterpolation(self,x,t):
+        y = np.logical_not(np.isnan(x))
+        xinterp = np.interp(t[np.logical_not(y)], t[y], x[y])
+        return xinterp
     
     def conditionalGaussian(self,mu,Sig,f,nearSPD=False,x_indices=[],obsNoise=0):
         '''
