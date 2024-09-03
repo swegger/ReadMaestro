@@ -6,9 +6,6 @@ Written by Seth W. Egger <sethegger@gmail.com>
 Defines pursuit object and methods to extract data, identify saccades, 
 and replace saccade velocities from pursuit traces with NaNs.
 
-To do: Define methods to interpolate NaNs - 1. Classic linear interpolation; 2. Inference using a Gaussian process
-To do: Define methods to shuffle saccade indices with respect to trial number so that interpolation performance can be measured
-
 Finds appropriate pursuit trials in a data set and collates the results.
 """
 
@@ -174,15 +171,24 @@ class pursuitDataObject(object):
         return hvelocity, vvelocity, dirs, spds, cohs, perts, sacInds
     
     def applyRotationToData(self):
+        '''
+        Method to apply rotation to the data.
+        '''
         self.hvelocities, self.vvelocities = self.rotateData(self.hvelocities,self.vvelocities,np.add(self.directions,self.vel_theta))
         self.rotationApplied = True
 
     def setSaccadeVelocitiesToNaN(self):
+        '''
+        Method to replace pursuit velocities with NaNs where saccades have been detected.
+        '''
         self.hvelocities[self.saccades] = np.nan
         self.vvelocities[self.saccades] = np.nan
         self.nansaccades = True
         
     def scaleVelocities(self):
+        '''
+        Method to scale pursuit velocities by the target speed.
+        '''
         self.hvelocities = self.hvelocities/self.speeds
         self.vvelocities = self.vvelocities/self.speeds
     
@@ -203,7 +209,7 @@ class pursuitDataObject(object):
     
     def rotateData(self,x,y,thetas):
         '''
-        Method to rotate cartesian data to a common frame based on 
+        Method to rotate cartesian data to a common frame 
         '''
         xnew = x*np.cos(np.deg2rad(thetas)) + y*np.sin(np.deg2rad(thetas))
         ynew = x*np.sin(np.deg2rad(thetas)) - y*np.cos(np.deg2rad(thetas))
@@ -224,6 +230,10 @@ class pursuitDataObject(object):
         return mu, C
     
     def linearInterpolation(self,x,t):
+        '''
+        Method to infer unobserved data points by linear interpolation from last
+        known point to next known point.
+        '''
         y = np.logical_not(np.isnan(x))
         xinterp = np.interp(t[np.logical_not(y)], t[y], x[y])
         return xinterp
@@ -305,3 +315,37 @@ class pursuitDataObject(object):
             Sig_ = nearPD(Sig_)
 
         return mu_, Sig_, SigUnObs, SigObsObs
+    
+    def measureInferenceErrors(self, permuted_self, inferenceMethod='gaussianProcess', mu=[], C=[], obsNoise=0, clip_min=1e-02, nearSPD=False):
+        '''
+        Method for estimating the error in inference using different methods. Takes as input a pursuitDataObject
+        with saccade times permuted over trials and estimates the inference error from the actual pursuit data.
+        Returns the differnce between pursuit data (without saccades) and the inferred pursuit at fictious
+        saccade events as well as the sum of the squared errors over each pursuit trial.
+        '''
+        errs = np.empty_like(self.hvelocities)
+        for triali in range(self.hvelocities.shape[1]):
+            x = permuted_self.hvelocities[:,triali]
+            xtemp = np.empty_like(x)
+            y = np.logical_not(np.isnan(x) + np.isnan(self.hvelocities[:,triali]))
+            f = x[y]
+            xtemp[y] = x[y]
+            xtemp[np.logical_not(y)] = np.nan
+            
+            if inferenceMethod == 'gaussianProcess':
+                mu_, C_, C_UnObs, C_ObsObs = self.conditionalGaussian(mu,np.array(C),f,x_indices=y,obsNoise=obsNoise,nearSPD=nearSPD)
+                temp = np.empty_like(mu)
+                temp[y] = np.nan
+                temp[np.logical_not(y)] = mu_
+
+            elif inferenceMethod == 'linearInterpolation':
+                xinterp = self.linearInterpolation(xtemp,self.eye_t)
+                temp = np.empty_like(x)
+                temp[y] = np.nan
+                temp[np.logical_not(y)] = xinterp
+
+            errs[:,triali] = temp - self.hvelocities[:,triali]
+
+        sse = np.clip(np.nansum(errs**2,axis=0),a_min=clip_min,a_max=np.inf)
+
+        return errs, sse
